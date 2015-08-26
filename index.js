@@ -9,9 +9,8 @@ var bencode = require('bencode')
 var announceList = require('./announce.js')
 
 module.exports = function (opts) {
+  if (!opts) opts = {}
   var pieceLength = defined(opts.pieceLength, 4096 * 1024)
-  var put = opts.put
-  if (!put) throw new Error('opts.put not provided')
   var pieces = []
   var announce = defined(opts.announceList, opts.trackers, announceList)
     .map(function (x) { return Array.isArray(x) ? x : [x] })
@@ -23,29 +22,17 @@ module.exports = function (opts) {
       size += chunk.length
       sha1(chunk, function (hash) {
         pieces.push(hash)
-        put(hash, chunk, function (err) {
-          if (err) return next(err)
-          outer.emit('pieces', pieces)
-          outer.emit('torrent', createTorrent(pieces))
-          next()
-        })
+        outer.emit('chunk', chunk, hash)
+        var info = {
+          name: opts.name,
+          length: size,
+          pieces: pieces,
+          'piece length': pieceLength
+        }
+        outer.emit('info', info, sha1.sync(bencode.encode(info)))
+        next()
       })
     })
   ))
   return outer
-
-  function createTorrent (pieces) {
-    return bencode.encode({
-      info: {
-        name: opts.name,
-        length: size,
-        pieces: pieces
-      },
-      announce: announce[0][0],
-      'announce-list': announce,
-      'creation date': defined(Number(opts.creationDate), Date.now()),
-      encoding: 'UTF-8',
-      'piece length': pieceLength,
-    })
-  }
 }
