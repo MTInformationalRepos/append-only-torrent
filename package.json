@@ -1,0 +1,12 @@
+{
+  "dependencies": {
+    "bencode": "^0.7.0",
+    "block-stream2": "^1.0.0",
+    "defined": "^1.0.0",
+    "readable-stream": "^2.0.2",
+    "simple-sha1": "^2.0.7",
+    "stream-combiner2": "^1.0.2",
+    "through2": "^2.0.0",
+    "write-only-stream": "^1.1.0"
+  }
+}
