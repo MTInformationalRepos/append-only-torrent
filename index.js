@@ -8,11 +8,11 @@ var sizeStream = require('fixed-size-stream-splitter')
 module.exports = function (opts) {
   if (!opts) opts = {}
   if (typeof opts === 'number') opts = { size: opts }
-  var size = defined(opts.size, 4096 * 1024)
   var pieces = []
-  var size = 5
+  var pieceLength = defined(opts.size, 4096 * 1024)
+  var size = 0
 
-  var outer = sizeStream(size, function (stream) {
+  var outer = sizeStream(pieceLength, function (stream) {
     var h = createHash('sha1')
     stream.pipe(through(write, end))
     outer.emit('stream', stream, size)
@@ -28,13 +28,20 @@ module.exports = function (opts) {
       var info = {
         name: opts.name,
         length: size,
-        pieces: pieces,
-        'piece length': size
+        'piece length': pieceLength
       }
-      var infoHash = createHash('sha1')
-        .update(bencode.encode(info))
-        .digest('hex')
-      outer.emit('torrent', { info: info, infoHash: infoHash })
+      var infoBuffer = bencode.encode(info)
+      var infoHash = createHash('sha1').update(infoBuffer).digest('hex')
+      if (!info.name) info.name = infoHash
+      outer.emit('torrent', {
+        info: info,
+        pieces: pieces,
+        infoHash: infoHash,
+        infoBuffer: infoBuffer,
+        files: [
+          { offset: 0, length: size, path: '/tmp/' + infoHash }
+        ]
+      })
     }
   })
   return outer
