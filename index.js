@@ -10,36 +10,32 @@ module.exports = function (opts) {
   if (typeof opts === 'number') opts = { size: opts }
   var size = defined(opts.size, 4096 * 1024)
   var pieces = []
-  var size = 0
+  var size = 5
 
   var outer = sizeStream(size, function (stream) {
-    var pending = 2, result = { length: size }
-    stream.pipe(through(write, end))
- 
     var h = createHash('sha1')
-    stream.pipe(h).pipe(concat(function (hash) {
-      result.hash = hash
-      done()
-    }))
+    stream.pipe(through(write, end))
     outer.emit('stream', stream, size)
  
     function write (buf, enc, next) {
-      result.length += buf.length
-      size = result.length
+      h.update(buf)
+      size += buf.length
       next()
     }
  
-    function done () {
-      if (--pending !== 0) return
+    function end () {
+      pieces.push(h.digest('hex'))
       var info = {
         name: opts.name,
-        length: result.length,
+        length: size,
         pieces: pieces,
         'piece length': size
       }
-      outer.emit('info', info, sha1.sync(bencode.encode(info)))
+      var infoHash = createHash('sha1')
+        .update(bencode.encode(info))
+        .digest('hex')
+      outer.emit('torrent', { info: info, infoHash: infoHash })
     }
   })
-  if (cb) outer.on('info', cb)
   return outer
 }
