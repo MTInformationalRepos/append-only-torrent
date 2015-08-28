@@ -9,9 +9,11 @@ module.exports = function (opts) {
   if (!opts) opts = {}
   if (typeof opts === 'number') opts = { size: opts }
   var pieces = [], hexpieces = []
-  var pieceLength = defined(opts.size, 4096 * 1024)
+  var pieceLength = defined(opts.size, 1024 * 64)
   var size = 0
+  var index = 0
   var store = opts.store
+  if (!store) throw new Error('opts.store not provided')
 
   var outer = sizeStream(pieceLength, function (stream) {
     var h = createHash('sha1')
@@ -20,9 +22,8 @@ module.exports = function (opts) {
  
     function write (buf, enc, next) {
       h.update(buf)
-      var offset = size
       size += buf.length
-      store.put(offset, buf, function (err) { next(err) })
+      store.put(index++, buf, function (err) { next(err) })
     }
  
     function end () {
@@ -38,7 +39,6 @@ module.exports = function (opts) {
       }
       var infoBuffer = bencode.encode(info)
       var infoHash = createHash('sha1').update(infoBuffer).digest('hex')
-      if (!info.name) info.name = infoHash
       var torrent = {
         info: info,
         infoHash: infoHash,
