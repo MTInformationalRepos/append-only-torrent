@@ -1,8 +1,10 @@
 {
+  "name": "append-only-torrent",
   "dependencies": {
     "bencode": "^0.7.0",
     "concat-stream": "^1.5.0",
     "defined": "^1.0.0",
+    "duplexify": "^3.4.2",
     "fixed-size-stream-splitter": "^1.0.0",
     "sha.js": "^2.4.2",
     "through2": "^2.0.0"

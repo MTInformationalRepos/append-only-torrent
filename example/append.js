@@ -2,12 +2,22 @@ var append = require('../')
 var torrent = require('torrent-stream')
 var magnet = require('magnet-uri')
 
-var FStore = require('fs-chunk-store')
-var store = FStore(5, { path: '/tmp/append.store' })
+var fs = require('fs')
+var FDStore = require('../store.js')
+var store = FDStore(5, { path: './file' })
 var trackers = [ 'udp://127.0.0.1:9000' ]
 
-var w = append({ size: 5, store: store })
-w.on('torrent', function (t) {
+fs.stat('file', function (err, stat) {
+  var w = append({ size: 5, offset: stat.size })
+  w.on('stream', function (stream, offset, done) {
+    var w = stream.pipe(store.createWriteStream({ start: offset }))
+    w.once('finish', done)
+  })
+  w.on('torrent', ontorrent)
+  process.stdin.pipe(w)
+})
+
+function ontorrent (t, done) {
   var engine = torrent(t, {
     storage: function () { return store },
     trackers: trackers
@@ -21,7 +31,7 @@ w.on('torrent', function (t) {
       xt: 'urn:btih:' + t.infoHash,
       tr: trackers
     }))
+    done()
   })
   engine.listen(0)
-})
-process.stdin.pipe(w)
+}

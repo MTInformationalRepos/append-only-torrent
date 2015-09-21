@@ -10,23 +10,31 @@ module.exports = function (opts) {
   if (typeof opts === 'number') opts = { size: opts }
   var pieces = [], hexpieces = []
   var pieceLength = defined(opts.size, 1024 * 64)
-  var size = 0
-  var index = 0
-  var store = opts.store
-  if (!store) throw new Error('opts.store not provided')
+  var size = 0, pending = 2
+  var offset = defined(opts.offset, 0)
+  var streams = []
 
   var outer = sizeStream(pieceLength, function (stream) {
+    streams.push(stream)
+    if (streams.length === 1) nextStream()
+  })
+  function nextStream () {
+    if (streams.length === 0) return
+    var stream = streams.shift()
+
     var h = createHash('sha1')
-    stream.pipe(through(write, end))
-    outer.emit('stream', stream, size)
+    stream.pipe(through(write, done))
+    outer.emit('stream', stream, offset, done)
+    offset += pieceLength
  
     function write (buf, enc, next) {
       h.update(buf)
       size += buf.length
-      store.put(index++, buf, function (err) { next(err) })
+      next()
     }
  
-    function end () {
+    function done () {
+      if (--pending !== 0) return
       var hash = h.digest()
       pieces.push(hash)
       hexpieces.push(hash.toString('hex'))
@@ -53,8 +61,8 @@ module.exports = function (opts) {
         pieces: hexpieces,
         announce: defined(opts.announce, opts.trackers, [])
       }
-      outer.emit('torrent', torrent)
+      outer.emit('torrent', torrent, nextStream)
     }
-  })
+  }
   return outer
 }
