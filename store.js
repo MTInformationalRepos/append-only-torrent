@@ -19,11 +19,25 @@ function FS (size, opts) {
       return fs.open(opts.path, 'w+', onopen)
     }
     fs.fstat(fd, function (err, stat) {
-      self.filesize = stat.size
-      self.fd = fd
-      self.emit('open')
+      if (stat.size % self.size === 0) ready(fd, stat, null)
+      else remainder(fd, stat)
     })
   })
+
+  function remainder (fd, stat) {
+    var rem = stat.size % self.size
+    var buf = new Buffer(rem)
+    fs.read(fd, buf, 0, buf.length, stat.size - rem, onread)
+    function onread (err, bytesRead) {
+      ready(fd, stat, buf)
+    }
+  }
+
+  function ready (fd, stat, rem) {
+    self.filesize = stat.size
+    self.fd = fd
+    self.emit('open', stat.size, rem)
+  }
 }
 
 function ready (f) {

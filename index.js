@@ -13,8 +13,10 @@ module.exports = function (opts) {
   var streamIndex = 0
   var offset = defined(opts.offset, 0)
   var streams = []
+  var rem = opts.remainder
 
-  var outer = sizeStream(pieceLength, function (stream) {
+  var sopts = { size: pieceLength, offset: offset }
+  var outer = sizeStream(sopts, function (stream) {
     streams.push([ stream, streamIndex++ ])
     if (streams.length === 1) nextStream()
   })
@@ -23,10 +25,15 @@ module.exports = function (opts) {
     var tstream = streams.shift()
     var stream = tstream[0]
     var start = tstream[1] * pieceLength + offset
-    var size = (tstream[1] + 1) * pieceLength + offset
+    var size = (tstream[1] + 1) * pieceLength
+    offset = 0
     var pending = 2
     var h = createHash('sha1')
 
+    if (rem) {
+      h.update(rem)
+      rem = null
+    }
     stream.pipe(through(write, done))
     outer.emit('stream', stream, start, done)
  
@@ -69,3 +76,5 @@ module.exports = function (opts) {
   }
   return outer
 }
+
+function noop () {}

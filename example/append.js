@@ -7,14 +7,20 @@ var FDStore = require('../store.js')
 var store = FDStore(5, { path: './file' })
 var trackers = [ 'udp://127.0.0.1:9000' ]
 
-fs.stat('file', function (err, stat) {
-  var w = append({ size: 5, offset: (stat || {}).size })
-  w.on('stream', function (stream, offset, done) {
-    var w = stream.pipe(store.createWriteStream({ start: offset }))
-    w.once('finish', done)
+store.on('open', function (offset, rem) {
+  var w = append({
+    size: 5,
+    offset: offset,
+    remainder: rem
   })
   w.on('torrent', ontorrent)
+  w.on('stream', onstream)
   process.stdin.pipe(w)
+
+  function onstream (stream, offset, done) {
+    var w = stream.pipe(store.createWriteStream({ start: offset }))
+    w.once('finish', done)
+  }
 })
 
 function ontorrent (t, done) {
