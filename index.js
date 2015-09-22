@@ -10,28 +10,27 @@ module.exports = function (opts) {
   if (typeof opts === 'number') opts = { size: opts }
   var pieces = [], hexpieces = []
   var pieceLength = defined(opts.size, 1024 * 64)
-  var size = 0
+  var streamIndex = 0
   var offset = defined(opts.offset, 0)
   var streams = []
 
   var outer = sizeStream(pieceLength, function (stream) {
-    streams.push(stream)
+    streams.push([ stream, streamIndex++ ])
     if (streams.length === 1) nextStream()
   })
   function nextStream () {
     if (streams.length === 0) return
-    var stream = streams.shift()
+    var tstream = streams.shift()
+    var stream = tstream[0], size = (tstream[1] + 1) * pieceLength
     var pending = 2
     var h = createHash('sha1')
+
     stream.pipe(through(write, done))
     outer.emit('stream', stream, offset, done)
     offset += pieceLength
-    var sizes = []
  
     function write (buf, enc, next) {
       h.update(buf)
-      size += buf.length
-      sizes.push(size)
       next()
     }
  
@@ -40,11 +39,10 @@ module.exports = function (opts) {
       var hash = h.digest()
       pieces.push(hash)
       hexpieces.push(hash.toString('hex'))
-      var tsize = sizes.shift()
  
       var info = {
         name: defined(opts.name, 'output'),
-        length: tsize,
+        length: size,
         'piece length': pieceLength,
         pieces: Buffer.concat(pieces)
       }
@@ -57,7 +55,7 @@ module.exports = function (opts) {
         files: [
           {
             offset: 0,
-            length: tsize,
+            length: size,
             path: '/fake/' + infoHash
           }
         ],
