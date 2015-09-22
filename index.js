@@ -60,6 +60,7 @@ module.exports = function (opts) {
           }
         ],
         pieces: hexpieces.slice(),
+        pieceLength: pieceLength,
         announce: defined(opts.announce, opts.trackers, [])
       }
       outer.emit('torrent', torrent, nextStream)
