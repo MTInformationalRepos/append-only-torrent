@@ -58,10 +58,10 @@ module.exports = function (opts) {
           {
             offset: 0,
             length: tsize,
-            path: '/tmp/' + infoHash 
+            path: '/fake/' + infoHash
           }
         ],
-        pieces: hexpieces,
+        pieces: hexpieces.slice(),
         announce: defined(opts.announce, opts.trackers, [])
       }
       outer.emit('torrent', torrent, nextStream)
