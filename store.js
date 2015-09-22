@@ -74,6 +74,8 @@ FS.prototype.getBytes = ready(function (i, j, opts, cb) {
     total += bytesRead
     if (total < buf.length && bytesRead > 0) {
       fs.read(self.fd, buf, total, j - i - total, i + total, onread)
+    } else if (bytesRead === 0) {
+      cb(null, buf.slice(0, total))
     } else cb(null, buf)
   }
 })
