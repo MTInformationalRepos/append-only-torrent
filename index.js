@@ -26,10 +26,12 @@ module.exports = function (opts) {
     stream.pipe(through(write, done))
     outer.emit('stream', stream, offset, done)
     offset += pieceLength
+    var sizes = []
  
     function write (buf, enc, next) {
       h.update(buf)
       size += buf.length
+      sizes.push(size)
       next()
     }
  
@@ -38,10 +40,11 @@ module.exports = function (opts) {
       var hash = h.digest()
       pieces.push(hash)
       hexpieces.push(hash.toString('hex'))
+      var tsize = sizes.shift()
  
       var info = {
         name: defined(opts.name, 'output'),
-        length: size,
+        length: tsize,
         'piece length': pieceLength,
         pieces: Buffer.concat(pieces)
       }
@@ -54,7 +57,7 @@ module.exports = function (opts) {
         files: [
           {
             offset: 0,
-            length: size,
+            length: tsize,
             path: '/tmp/' + infoHash 
           }
         ],
