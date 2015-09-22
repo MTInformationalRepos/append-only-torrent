@@ -21,13 +21,14 @@ module.exports = function (opts) {
   function nextStream () {
     if (streams.length === 0) return
     var tstream = streams.shift()
-    var stream = tstream[0], size = (tstream[1] + 1) * pieceLength
+    var stream = tstream[0]
+    var start = tstream[1] * pieceLength + offset
+    var size = (tstream[1] + 1) * pieceLength + offset
     var pending = 2
     var h = createHash('sha1')
 
     stream.pipe(through(write, done))
-    outer.emit('stream', stream, offset, done)
-    offset += pieceLength
+    outer.emit('stream', stream, start, done)
  
     function write (buf, enc, next) {
       h.update(buf)
