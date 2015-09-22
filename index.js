@@ -10,7 +10,7 @@ module.exports = function (opts) {
   if (typeof opts === 'number') opts = { size: opts }
   var pieces = [], hexpieces = []
   var pieceLength = defined(opts.size, 1024 * 64)
-  var size = 0, pending = 2
+  var size = 0
   var offset = defined(opts.offset, 0)
   var streams = []
 
@@ -21,7 +21,7 @@ module.exports = function (opts) {
   function nextStream () {
     if (streams.length === 0) return
     var stream = streams.shift()
-
+    var pending = 2
     var h = createHash('sha1')
     stream.pipe(through(write, done))
     outer.emit('stream', stream, offset, done)

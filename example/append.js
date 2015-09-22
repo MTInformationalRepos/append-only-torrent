@@ -8,7 +8,7 @@ var store = FDStore(5, { path: './file' })
 var trackers = [ 'udp://127.0.0.1:9000' ]
 
 fs.stat('file', function (err, stat) {
-  var w = append({ size: 5, offset: stat.size })
+  var w = append({ size: 5, offset: (stat || {}).size })
   w.on('stream', function (stream, offset, done) {
     var w = stream.pipe(store.createWriteStream({ start: offset }))
     w.once('finish', done)
