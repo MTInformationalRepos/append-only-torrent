@@ -17,5 +17,31 @@
     "magnet-uri": "^4.2.3",
     "tape": "^4.2.0",
     "torrent-stream": "^1.0.0"
-  }
+  },
+  "description": "create a sequence of torrent files for growing input",
+  "version": "1.0.0",
+  "main": "index.js",
+  "directories": {
+    "example": "example",
+    "test": "test"
+  },
+  "scripts": {
+    "test": "tape test/*.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/substack/append-only-torrent.git"
+  },
+  "keywords": [
+    "torrent",
+    "append-only",
+    "magnet",
+    "bittorrent"
+  ],
+  "author": "substack",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/substack/append-only-torrent/issues"
+  },
+  "homepage": "https://github.com/substack/append-only-torrent#readme"
 }
