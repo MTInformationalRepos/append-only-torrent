@@ -1,81 +1,57 @@
-var through = require('through2')
-var defined = require('defined')
-var bencode = require('bencode')
+var Info = require('./lib/info.js')
+var Writable = require('readable-stream/writable')
 var createHash = require('sha.js')
-var concat = require('concat-stream')
-var sizeStream = require('fixed-size-stream-splitter')
+var bs = require('block-stream2')
+var through = require('through2')
+var writeonly = require('write-only-stream')
 
-module.exports = function (opts) {
-  if (!opts) opts = {}
-  if (typeof opts === 'number') opts = { size: opts }
-  var pieces = defined(opts.pieces, [])
-  var hexpieces = pieces.map(function (p) { return p.toString('hex') })
-  var pieceLength = defined(opts.size, 1024 * 64)
-  var streamIndex = 0
-  var offset = defined(opts.offset, 0)
-  var streams = []
-  var rem = opts.remainder
+module.exports = function (size, fstore, cb) {
+  var store = fstore(size)
+  var pieces = []
+  var outer = through()
+  ;(function next (index, offset) {
+    store.get(index, function (err, buf) {
+      if (err) cb(err)
+      else if (buf.length === size) {
+        var hash = createHash('sha1').update(buf).digest()
+        pieces.push(hash)
+        next(index + 1, offset + buf.length)
+      } else {
+        var info = Info({
+          size: size,
+          offset: offset,
+          remainder: buf,
+          pieces: pieces
+        })
+        info.on('torrent', function (t) { cb(null, t) })
+        info.on('stream', function (stream, offset, done) {
+          stream.pipe(bs(size)).pipe(wstore(offset, done))
+        })
+        outer.pipe(info)
+      }
+    })
+  })(0, 0)
+  return writeonly(outer)
 
-  var sopts = { size: pieceLength, offset: offset }
-  var outer = sizeStream(sopts, function (stream) {
-    streams.push([ stream, streamIndex++ ])
-    if (streams.length === 1) nextStream()
-  })
-  function nextStream () {
-    if (streams.length === 0) return
-    var tstream = streams.shift()
-    var stream = tstream[0]
-    var start = tstream[1] * pieceLength + offset
-    var size = (tstream[1] + 1) * pieceLength + offset - offset % pieceLength
-    offset -= offset % pieceLength
-    var pending = 2
-    var h = createHash('sha1')
+  function wstore (offset, end) {
+    var pending = 1
+    var w = new Writable
+    w.once('finish', done)
 
-    if (rem) {
-      h.update(rem)
-      rem = null
-    }
-    stream.pipe(through(write, done))
-    outer.emit('stream', stream, start, done)
- 
-    function write (buf, enc, next) {
-      h.update(buf)
+    var index = Math.floor(offset / size)
+    w._write = function (buf, enc, next) {
+      pending ++
+      store.put(index, buf, function (err) {
+        if (err) return cb(err)
+        done()
+      })
+      index++
       next()
     }
- 
+    return w
+
     function done () {
-      if (--pending !== 0) return
-      var hash = h.digest()
-      pieces.push(hash)
-      hexpieces.push(hash.toString('hex'))
- 
-      var info = {
-        name: defined(opts.name, 'output'),
-        length: size,
-        'piece length': pieceLength,
-        pieces: Buffer.concat(pieces)
-      }
-      var infoBuffer = bencode.encode(info)
-      var infoHash = createHash('sha1').update(infoBuffer).digest('hex')
-      var torrent = {
-        info: info,
-        infoHash: infoHash,
-        infoBuffer: infoBuffer,
-        files: [
-          {
-            offset: 0,
-            length: size,
-            path: '/fake/' + infoHash
-          }
-        ],
-        pieces: hexpieces.slice(),
-        pieceLength: pieceLength,
-        announce: defined(opts.announce, opts.trackers, [])
-      }
-      outer.emit('torrent', torrent, nextStream)
+      if (--pending === 0) end()
     }
   }
-  return outer
 }
-
-function noop () {}

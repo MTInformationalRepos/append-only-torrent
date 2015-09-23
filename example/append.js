@@ -1,48 +1,15 @@
 var append = require('../')
 var torrent = require('torrent-stream')
 var magnet = require('magnet-uri')
-var through = require('through2')
-var createHash = require('sha.js')
 
-var fs = require('fs')
-var FDStore = require('fs-remainder-chunk-store')
-var store = FDStore(5, { path: './file' })
+var Store = require('fd-chunk-store')
+function fstore (size) { return Store(size, './file') }
+
 var trackers = [ 'udp://127.0.0.1:9000' ]
 
-store.once('open', function (offset, rem) {
-  var pieces = []
-  var r = store.createReadStream()
-  r.pipe(through(write, end))
-
-  function write (buf, enc, next) {
-    if (buf.length === 5) {
-      var hash = createHash('sha1').update(buf).digest()
-      pieces.push(hash)
-    }
-    next()
-  }
-
-  function end () {
-    var w = append({
-      size: 5,
-      offset: offset,
-      remainder: rem,
-      pieces: pieces
-    })
-    w.on('torrent', ontorrent)
-    w.on('stream', onstream)
-    process.stdin.pipe(w)
-  }
-})
-
-function onstream (stream, offset, done) {
-  var w = stream.pipe(store.createWriteStream({ start: offset }))
-  w.once('finish', done)
-}
-
-function ontorrent (t, done) {
+process.stdin.pipe(append(5, fstore, function (err, t) {
   var engine = torrent(t, {
-    storage: function () { return store },
+    storage: fstore,
     trackers: trackers
   })
   engine.on('ready', function () {
@@ -54,7 +21,6 @@ function ontorrent (t, done) {
       xt: 'urn:btih:' + t.infoHash,
       tr: trackers
     }))
-    done()
   })
   engine.listen(0)
-}
+}))
