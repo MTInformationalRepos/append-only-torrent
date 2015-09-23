@@ -8,7 +8,8 @@ var sizeStream = require('fixed-size-stream-splitter')
 module.exports = function (opts) {
   if (!opts) opts = {}
   if (typeof opts === 'number') opts = { size: opts }
-  var pieces = [], hexpieces = []
+  var pieces = defined(opts.pieces, [])
+  var hexpieces = pieces.map(function (p) { return p.toString('hex') })
   var pieceLength = defined(opts.size, 1024 * 64)
   var streamIndex = 0
   var offset = defined(opts.offset, 0)
@@ -25,8 +26,8 @@ module.exports = function (opts) {
     var tstream = streams.shift()
     var stream = tstream[0]
     var start = tstream[1] * pieceLength + offset
-    var size = (tstream[1] + 1) * pieceLength
-    offset = 0
+    var size = (tstream[1] + 1) * pieceLength + offset - offset % pieceLength
+    offset -= offset % pieceLength
     var pending = 2
     var h = createHash('sha1')
 
